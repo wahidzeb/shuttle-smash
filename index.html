@@ -433,6 +433,15 @@ body:not(.ads-on) .adslot{display:none!important}
 
 <div id="toast"></div>
 <script>
+/* GA4 custom events (Games by Zaib). Safe: never throws, light (no per-frame calls, dedupe + per-page cap). */
+var ZT_N = 0, ZT_K = '', ZT_KT = 0, ZT_T = 0, ZT_S = 0, ZT_H = 0;
+function zt(n, p) { try { var k = n + JSON.stringify(p || 0), t = Date.now(); if (ZT_N > 150 || (k === ZT_K && t - ZT_KT < 500)) return; ZT_N++; ZT_K = k; ZT_KT = t; window.gtag && gtag('event', n, Object.assign({ game_id: 'shuttle-smash' }, p)); } catch (e) {} }
+function ztPlay(on) { try { var t = Date.now(); if (ZT_S) { ZT_T += (t - ZT_S) / 1e3; ZT_S = 0; } if (on) ZT_S = t; } catch (e) {} }
+function ztPing(r) { try { ztPlay(false); if (ZT_T >= 1) zt('play_time', { play_time: Math.round(ZT_T), reason: r }); ZT_T = 0; } catch (e) {} }
+try {
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { ZT_H = !!ZT_S; ztPing('page_hide'); } else if (ZT_H) { ZT_H = 0; ztPlay(true); } });
+  document.addEventListener('click', function (e) { try { var a = e.target && e.target.closest && e.target.closest('a[href]'); if (!a) return; var u = new URL(a.href, location.href); if (!/^https?:$/.test(u.protocol)) return; if (u.host === location.host || /(^|\.)zaibgames\.com$/.test(u.host)) { if (u.pathname.indexOf('/shuttle-smash/') !== 0) zt('more_games_click', { link_url: u.href }); } else zt('outbound_click', { link_url: u.href, link_domain: u.host, outbound: true }); } catch (err) {} }, true);
+} catch (e) {}
 'use strict';
 // ================= Shuttle Smash by Zaib — core =================
 const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
@@ -2265,7 +2274,7 @@ function submitShot(q, pi) {
   q.t = m.t;
   q.inZone = m.state === 'rally' && m.sh.live && m.sh.last === 1 - pi && Math.sign(m.sh.y) === p.side && inZone(m, p);
   setQ(m, pi, q);
-  if (pi === 0) save.tut = (save.tut || 0) + 1;
+  if (pi === 0) { save.tut = (save.tut || 0) + 1; if (save.tut === 1) zt('tutorial_begin', {}); else if (save.tut === 10) zt('tutorial_complete', {}); }
 }
 function armPower(pi) {
   pi = pi || 0;
@@ -2323,7 +2332,7 @@ function startMatch(o) {
   G.banner = { text: o.title || (m.p[0].prof.name + '  vs  ' + m.p[1].prof.name), sub: o.sub || (m.venue.name + ' · ' + (m.train ? 'Training' : DIFFS[m.diff].name + ' · ' + m.target + ' pts')), col: '#fff', t: 0, max: 1.9 };
   input.keys.clear(); input.move.id = null; input.move.mag = 0;
   G.last = performance.now();
-  if (!o.bot) tryFullscreen();
+  if (!o.bot) { tryFullscreen(); const zm = m.train ? 'training' : m.mode + (m.twoP ? '_2p' : ''), zl = m.train ? o.train : m.mode === 'tour' ? (o.stage | 0) + 1 : (m.diff | 0) + 1; zt('game_start', { mode: zm, level: zl }); zt('level_start', { level: zl, mode: zm }); ztPlay(true); }
   return m;
 }
 function startDemo() {
@@ -2785,6 +2794,7 @@ function renderPlayer() {
 // ---------- shop ----------
 let shopTab = 'u';
 function icoCanvas(draw) { const cv = document.createElement('canvas'); cv.width = cv.height = 116; cv.className = 'shopIco'; const c = cv.getContext('2d'); c.scale(2, 2); draw(c); return cv; }
+let ztItem = '';
 function renderShop() {
   $$('#scrShop .tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === shopTab));
   const L = $('#shopList'); L.innerHTML = '';
@@ -2792,11 +2802,11 @@ function renderShop() {
     const d = document.createElement('div'); d.className = 'card' + (eq ? ' eq' : '');
     d.appendChild(ico);
     const inf = document.createElement('div'); inf.className = 'info'; inf.innerHTML = '<div class="ttl">' + title + '</div><div class="desc">' + desc + '</div>' + (extra || ''); d.appendChild(inf);
-    const b = document.createElement('button'); b.className = 'btn small ' + btnCls; b.innerHTML = btnTxt; if (dis) b.disabled = true; b.onclick = onBuy; d.appendChild(b);
+    const b = document.createElement('button'); b.className = 'btn small ' + btnCls; b.innerHTML = btnTxt; if (dis) b.disabled = true; b.onclick = onBuy ? e => { ztItem = String(title).replace(/<[^>]*>/g, '').trim(); onBuy(e); } : null; d.appendChild(b);
     L.appendChild(d);
   };
   const price = n => '<span class="coin" style="width:16px;height:16px"></span>' + fmt(n);
-  const buy = (cost, fn) => () => { if (save.coins < cost) { SFX.denied(); toast('Not enough coins. Win matches to earn more!'); return; } save.coins -= cost; fn(); SFX.buy(); writeSave(); refreshCoins(); renderShop(); };
+  const buy = (cost, fn) => () => { if (save.coins < cost) { SFX.denied(); toast('Not enough coins. Win matches to earn more!'); return; } save.coins -= cost; zt('spend_virtual_currency', { virtual_currency_name: 'coins', value: cost, item_name: ztItem }); fn(); SFX.buy(); writeSave(); refreshCoins(); renderShop(); };
   if (shopTab === 'u') {
     UPG.forEach(u => {
       const lv = save.upg[u.id], cost = UPG_COST[lv];
@@ -2876,6 +2886,13 @@ function showResults(m) {
   } else next = () => showScreen('quick');
   if (m.gameLog.length) { const last = m.gameLog[m.gameLog.length - 1]; if (last) { } }
   save.coins += coins; writeSave();
+  try { const zl = m.mode === 'tour' ? m.o.stage + 1 : m.diff + 1;
+    zt('level_end', { level: zl, mode: m.mode, success: won });
+    zt('game_over', { score: ptsWon, level: zl, mode: m.mode, result: won ? 'win' : 'lose', longest_rally: m.longest });
+    if (won) zt('post_score', { score: ptsWon, level: zl, mode: m.mode });
+    if (coins > 0) zt('earn_virtual_currency', { virtual_currency_name: 'coins', value: coins, item_name: m.mode + '_reward' });
+    if (badge) zt('unlock_achievement', { achievement_id: badge });
+    ztPing('game_over'); } catch (e) { }
   G.state = 'results'; $('#hud').classList.add('hidden');
   if (won) SFX.win(); else SFX.lose();
   if (won) for (let k = 0; k < 60; k++) spawnP({ x: rand(-3, 3), y: rand(-2, 4), z: rand(2, 5), vx: rand(-1, 1), vy: rand(-1, 1), vz: rand(-1, 2), g: 1.5, drag: 1, life: rand(1.5, 3), size: rand(0.05, 0.09), col: pick(['#ffd23f', '#4cc9ff', '#ff4d8d', '#b6ff2b', '#ffffff']), type: 'confetti', add: false });
@@ -2896,6 +2913,8 @@ function showResults(m) {
 const RES = { next: null, m: null };
 function show2PResults(m) {
   const w = m.winner, coins = 30; save.coins += coins; writeSave();
+  zt('level_end', { level: m.diff + 1, mode: 'quick_2p', success: true }); zt('game_over', { score: (m.gameLog || []).length, level: m.diff + 1, mode: 'quick_2p', result: 'p' + (w + 1) + '_wins' });
+  zt('earn_virtual_currency', { virtual_currency_name: 'coins', value: coins, item_name: '2p_reward' }); ztPing('game_over');
   G.state = 'results'; $('#hud').classList.add('hidden'); SFX.win();
   for (let k = 0; k < 60; k++) spawnP({ x: rand(-3, 3), y: rand(-4, 4), z: rand(2, 5), vx: rand(-1, 1), vy: rand(-1, 1), vz: rand(-1, 2), g: 1.5, drag: 1, life: rand(1.5, 3), size: rand(0.05, 0.09), col: pick(['#ffd23f', '#4cc9ff', '#ff4d8d', '#b6ff2b', '#ffffff']), type: 'confetti', add: false });
   $('#resTitle').textContent = (w === 0 ? 'Player 1' : 'Player 2') + ' wins!'; $('#resTitle').className = 'resTitle';
@@ -2917,6 +2936,9 @@ function trainFinished(m) {
   let coins = 20 + sc * 3; const lines = [['Practice', 20], ['Score ' + sc, sc * 3]];
   if (nowStars > prevStars) { const b = (nowStars - prevStars) * Math.round(ch.reward / 3); coins += b; lines.push(['New stars!', b]); }
   save.train[ch.id] = Math.max(prevBest, sc); save.coins += coins; writeSave();
+  zt('level_end', { level: ch.id, mode: 'training', success: nowStars > 0, score: sc }); zt('game_over', { score: sc, level: ch.id, mode: 'training' });
+  if (sc > prevBest) zt('post_score', { score: sc, level: ch.id, mode: 'training' });
+  zt('earn_virtual_currency', { virtual_currency_name: 'coins', value: coins, item_name: 'training_reward' }); ztPing('game_over');
   setTimeout(() => {
     if (G.m !== m) return;
     G.state = 'results'; $('#hud').classList.add('hidden');
@@ -2940,8 +2962,8 @@ function initUI() {
   $('#bCup').onclick = () => { SFX.click(); showScreen('cup'); };
   $('#bPlayQuick').onclick = () => { SFX.click(); playQuick(); };
   $$('#plTabs button').forEach(b => b.onclick = () => { SFX.click(); save.quick.players = +b.dataset.pl; writeSave(); renderQuick(); });
-  for (const b of $$('.tog')) b.onclick = () => { SFX.click(); const k = b.dataset.set; save.settings[k] = !save.settings[k]; writeSave(); syncSettingsUI(); applyVolumes(); setCrowd(AU.crowdTarget || 0.3); };
-  for (const s of $$('.seg[data-seg]')) for (const b of s.querySelectorAll('button')) b.onclick = () => { SFX.click(); save.settings[s.dataset.seg] = +b.dataset.v; writeSave(); syncSettingsUI(); if (s.dataset.seg === 'q') { perf.low = false; perf.slow = 0; resize(); } };
+  for (const b of $$('.tog')) b.onclick = () => { SFX.click(); const k = b.dataset.set; save.settings[k] = !save.settings[k]; zt('settings_change', { setting: k, value: String(save.settings[k]) }); writeSave(); syncSettingsUI(); applyVolumes(); setCrowd(AU.crowdTarget || 0.3); };
+  for (const s of $$('.seg[data-seg]')) for (const b of s.querySelectorAll('button')) b.onclick = () => { SFX.click(); save.settings[s.dataset.seg] = +b.dataset.v; zt('settings_change', { setting: s.dataset.seg, value: String(b.dataset.v) }); writeSave(); syncSettingsUI(); if (s.dataset.seg === 'q') { perf.low = false; perf.slow = 0; resize(); } };
   $('#bReset').onclick = () => { if (!confirm('Reset all progress, coins and unlocks?')) return; const st = save.settings; save = defaultSave(); save.settings = st; writeSave(); refreshCoins(); toast('Progress reset'); };
   $('#inName').oninput = e => { save.name = e.target.value.trim().slice(0, 14) || 'Zaib'; save.nameSet = true; writeSave(); };
   $$('#scrShop .tabs button').forEach(b => b.onclick = () => { SFX.click(); shopTab = b.dataset.tab; renderShop(); });
