@@ -892,7 +892,7 @@ function noiseHit(t, d, v, ftype, freq, dest, q, f2, att) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + d);
   s.connect(f); f.connect(g); g.connect(dest || AU.sfx); s.start(t, Math.random() * 1.5); s.stop(t + d + 0.05);
 }
-function vibrate(p) { if (save.settings.vibe && navigator.vibrate && !(G && G.sim)) try { navigator.vibrate(p); } catch (e) { } }
+function vibrate(p) { if (save.settings.vibe && navigator.vibrate && !(G && G.sim) && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) try { navigator.vibrate(p); } catch (e) { } }
 function panFor(x) { return clamp(x / 4, -0.6, 0.6); }
 // crowd: level 0..1 baseline; swell adds temporary roar
 function setCrowd(level) { AU.crowdTarget = level; if (!AU.ctx) return; AU.crowd.gain.setTargetAtTime(save.settings.sound ? level * 0.55 : 0, AU.ctx.currentTime, 0.6); }
