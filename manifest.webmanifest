@@ -1,0 +1,42 @@
+{
+  "id": "/shuttle-smash/",
+  "name": "Shuttle Smash",
+  "short_name": "Shuttle Smash",
+  "description": "Shuttle Smash by Zaib - a 3D-style mobile badminton game. Swipe to smash, drop and clear. World Tour, tournaments, training, power shots and upgrades.",
+  "lang": "en",
+  "start_url": "/shuttle-smash/?source=pwa",
+  "scope": "/shuttle-smash/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#081028",
+  "background_color": "#081028",
+  "categories": [
+    "games"
+  ],
+  "icons": [
+    {
+      "src": "/shuttle-smash/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/shuttle-smash/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/shuttle-smash/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/shuttle-smash/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
